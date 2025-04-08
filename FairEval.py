@@ -4,38 +4,46 @@ import os
 import time
 
 import openai
+from dotenv import load_dotenv
 from tqdm import tqdm
 
+load_dotenv('.env')
+
+# Constants
 MAX_API_RETRY = 10000
 REQ_TIME_GAP = 4
 
+# Arguments from bash
 parser = argparse.ArgumentParser()
 parser.add_argument("-q", "--question-file")
 parser.add_argument("-a", "--answer-file-list", nargs="+", default=[])
 parser.add_argument('-o', '--output', help='Output file (defaults to stdout)')
-parser.add_argument("-m", "--eval-model", default="gpt-3.5-turbo-0301")
+parser.add_argument("-m", "--eval-model", default="gpt-3.5-turbo")
 parser.add_argument("-k", "--k", type=int, default=3)
 parser.add_argument("-b", "--bpc", type=int, default=1)
 
 args = parser.parse_args()
 
-if args.eval_model == "gpt-4":
+# Cost calculation constants
+if args.eval_model == "`gpt-4`":
     cost_per_promtp_token = 0.03 / 1000
     cost_per_completion_token = 0.06 / 1000
-elif args.eval_model == "gpt-3.5-turbo-0301":
-    cost_per_promtp_token = 2/ 10**6
-    cost_per_completion_token = 2/ 10**6
+elif args.eval_model == "gpt-3.5-turbo":
+    cost_per_promtp_token = 2 / 10 ** 6
+    cost_per_completion_token = 2 / 10 ** 6
 else:
     raise ValueError("Invalid evaluator name")
 
-
-os.environ["OPENAI_API_KEY"] = "sk-" 
+# OpenAI API key
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
-def gen_prompt(ques, ans1, ans2):
+
+# Judge prompt
+def gen_prompt(question, first_answer, second_answer):
     sys_prompt = 'You are a helpful and precise assistant for checking the quality of the answer.'
     prompt_template = "[Question]\n{question}\n\n[The Start of Assistant 1's Answer]\n{answer_1}\n[The End of Assistant 1's Answer]\n\n[The Start of Assistant 2's Answer]\n{answer_2}\n[The End of Assistant 2's Answer]\n\n[System]\n{prompt}\n"
-    default_prompt =  """We would like to request your feedback on the performance of two AI assistants in response to the user question displayed above.
+    default_prompt = """We would like to request your feedback on the performance of two AI assistants in response to the user question displayed above.
     Please rate the helpfulness, relevance, accuracy, level of details of their responses. 
 
     Each assistant receives an overall score on a scale of 1 to 10, where a higher score indicates better overall performance.
@@ -43,13 +51,16 @@ def gen_prompt(ques, ans1, ans2):
     Then, output two lines indicating the scores for Assistant 1 and 2, respectively.
 
     Output with the following format:
-    Evaluation evidence: <your evluation explanation here>
+    Evaluation evidence: <your evaluation explanation here>
     Score of the Assistant 1: <score>
     Score of the Assistant 2: <score>"""
-    return sys_prompt, prompt_template.format(question=ques, answer_1=ans1, answer_2=ans2, prompt=default_prompt)
+    return sys_prompt, prompt_template.format(question=question, answer_1=first_answer, answer_2=second_answer,
+                                              prompt=default_prompt)
 
+
+# Query function
 def query_gpt(system_prompt, uer_prompt):
-    for i in range(MAX_API_RETRY):
+    for retry_idx in range(MAX_API_RETRY):
         try:
             response = openai.ChatCompletion.create(
                 model=args.eval_model,
@@ -63,58 +74,81 @@ def query_gpt(system_prompt, uer_prompt):
             )
             return response
         except openai.error.RateLimitError:
-            print('rate limit')
+            print('Rate limit')
             time.sleep(30)
         except Exception as e:
             print('error')
     raise RuntimeError(f"Failed after {MAX_API_RETRY} retries.")
 
 
-def get_eval(ques, ans1, ans2):
-    cost = 0
-    system_prompt, user_prompt = gen_prompt(ques, ans1, ans2)
+def process_and_calculate_cost_for_prompt(question, first_answer, second_answer):
+    # Init final cost
+    final_cost = 0
+
+    # Prompt the judge
+    system_prompt, user_prompt = gen_prompt(question, first_answer, second_answer)
     response = query_gpt(system_prompt, user_prompt)
-    cost += response['usage']['prompt_tokens'] * cost_per_promtp_token
-    cost += response['usage']['completion_tokens'] * cost_per_completion_token
+
+    # Calculate the cost of prompting
+    final_cost += response['usage']['prompt_tokens'] * cost_per_promtp_token
+    final_cost += response['usage']['completion_tokens'] * cost_per_completion_token
+
+    return response, final_cost
+
+
+def extract_scores(question, first_answer, second_answer):
+    response, final_cost = process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
+
     all_scores = []
-    contents = []
-    contents_bpc = []
+    content_bodies = []
+
     for choice in response["choices"]:
+        # Extract the score from judgement (if exist)
         content = choice["message"]["content"]
-        score1, score2 = parse_score_from_review(content)
-        if score1 == -1 or score2 == -1:
+        first_score, second_score = parse_score_from_review(content)
+        if first_score == -1 or second_score == -1:
             continue
-        all_scores.append([score1, score2])
-        contents.append(content)
-    
+
+        # Save answer and scores
+        all_scores.append([first_score, second_score])
+        content_bodies.append(content)
+
+    return all_scores, content_bodies, final_cost
+
+
+def get_eval(question, first_answer, second_answer):
+    # Get the first scores
+    all_scores, content_bodies, final_cost = extract_scores(question, first_answer, second_answer)
+
+    # Backup initialization
+    contents_bpc = []
+
+    # Flag for usage Balance Position Calibration
     if args.bpc == 1:
-        system_prompt, user_prompt_bpc = gen_prompt(ques, ans2, ans1)
-        response_bpc = query_gpt(system_prompt, user_prompt_bpc)
-        cost += response_bpc['usage']['prompt_tokens'] * cost_per_promtp_token
-        cost += response_bpc['usage']['completion_tokens'] * cost_per_completion_token
-        for choice in response_bpc["choices"]:
-            content = choice["message"]["content"]
-            score2, score1 = parse_score_from_review(content)
-            if score1 == -1 or score2 == -1:
-                continue
-            all_scores.append([score1, score2])
-            contents_bpc.append(content)
-    
-    score1 = sum([score[0] for score in all_scores]) / len(all_scores)
-    score2 = sum([score[1] for score in all_scores]) / len(all_scores)
-    return contents, contents_bpc, cost, [score1, score2]
+        # Extract scores again for BPC
+        scores_bpc, contents_bpc, bpc_cost = extract_scores(question, second_answer, first_answer)
+
+        final_cost += bpc_cost
+        all_scores.append(scores_bpc)
+
+    # Calculate final average score
+    first_score = sum([score[0] for score in all_scores]) / len(all_scores)
+    second_score = sum([score[1] for score in all_scores]) / len(all_scores)
+
+    return content_bodies, contents_bpc, final_cost, [first_score, second_score]
 
 
+# Extract the score from the response of judge
 def parse_score_from_review(review):
     try:
-        score1 = review.split("\n")[-2]
-        score2 = review.split("\n")[-1]
-        score1 = score1.split(":")[-1].strip()
-        score2 = score2.split(":")[-1].strip()
-        return [float(score1), float(score2)]
-    except:
-        print(f'Failed to parse scores from {review}')
+        # Extract the score from the row before the last + the number after :
+        first_score = review.split("\n")[-2].split(":")[-1].strip()
+        second_score = review.split("\n")[-1].split(":")[-1].strip()
+        return [float(first_score), float(second_score)]
+    except Exception as e:
+        print(f'Failed to parse scores from {review}\nError: {e}')
         return [-1, -1]
+
 
 def get_json_list(file_path):
     file_path = os.path.expanduser(file_path)
@@ -125,60 +159,98 @@ def get_json_list(file_path):
         return json_list
 
 
-if __name__ == "__main__":
-    
-    question_jsons = get_json_list(args.question_file)
-    answer1_jsons = get_json_list(args.answer_file_list[0])
-    answer2_jsons = get_json_list(args.answer_file_list[1])
-    
-    assert len(question_jsons) == len(answer1_jsons) == len(answer2_jsons)
-    
-    reviews = []
-    total_len = len(question_jsons)
-    question_idx_list = list(range(total_len))
-    
-    for i in tqdm(question_idx_list):
-        assert (
-            answer1_jsons[i]["question_id"]
-            == question_jsons[i]["question_id"]
-            == answer2_jsons[i]["question_id"]
-        )
+# Gather all the judgements into one list
+def extract_results(gathered_reviews):
+    final_results = []
 
-        ques = question_jsons[i]["text"]
-        ans1 = answer1_jsons[i]["text"]
-        ans2 = answer2_jsons[i]["text"]
-        
-        reviews.append(get_eval(ques, ans1, ans2))
-        
-        # To avoid the rate limit set by OpenAI
-        time.sleep(REQ_TIME_GAP)
+    for idx, (contents, contents_bpc, cost, [score1, score2]) in enumerate(gathered_reviews):
+        final_results.append({
+            "question_id": question_jsons[idx]["question_id"],
+            "question": question_jsons[idx]["text"],
+            "review": contents,
+            "review_bpc": contents_bpc,
+            "cost": cost,
+            "score": [score1, score2],
+        })
 
+    return final_results
+
+
+# Calculate final cost and ratio
+def conclude_the_results(final_results):
+    # Init the result vars
     total_cost = 0
-    model1_vs_model2 = {
+    judgement_results = {
         'win': 0,
         'tie': 0,
         'loss': 0
     }
-    with open(f"{args.output}", "w") as output_review_file:
-        for idx, (contents, contents_bpc, cost, [score1, score2]) in enumerate(reviews):
-            results = {
-                "question_id": question_jsons[idx]["question_id"],
-                "question": question_jsons[idx]["text"],
-                "review": contents,
-                "review_bpc": contents_bpc,
-                "score": [score1, score2],
-            }
-            output_review_file.write(json.dumps(results) + "\n")
-            total_cost += cost 
-            
-            if score1 == score2:
-                model1_vs_model2['tie'] += 1
-                
-            elif score1 > score2:
-                model1_vs_model2['win'] += 1
-            else:
-                model1_vs_model2['loss'] += 1
-    
-    print(f'Evaluation results (model1_vs_model2):\n{model1_vs_model2}')
-    print(f'Evaluation cost: ${total_cost:.2f}.')
 
+    for current_result in final_results:
+        # Extract cost and scores
+        first_score, second_score = current_result["score"]
+        total_cost += current_result["cost"]
+
+        # Find the result
+        if first_score == second_score:
+            judgement_results['tie'] += 1
+        elif first_score > second_score:
+            judgement_results['win'] += 1
+        else:
+            judgement_results['loss'] += 1
+
+    return total_cost, judgement_results
+
+
+# Save final judgements
+def save_the_results(final_results):
+    with open(f"{args.output}", "w") as output_review_file:
+        for current_result in final_results:
+            # Save result judgement
+            output_review_file.write(json.dumps(current_result) + "\n")
+
+
+if __name__ == "__main__":
+    # Upload jsons with questions and answers
+    question_jsons = get_json_list(args.question_file)
+    first_answers_json = get_json_list(args.answer_file_list[0])
+    second_answers_json = get_json_list(args.answer_file_list[1])
+
+    # Check equality of length
+    assert len(question_jsons) == len(first_answers_json) == len(second_answers_json)
+
+    # Init vars
+    reviews = []
+    total_len = len(question_jsons)
+    question_idx_list = list(range(total_len))
+
+    # Iterate with progress bar through all the questions
+    for i in tqdm(question_idx_list):
+        # Check that in all datasets are the same question
+        assert (
+                first_answers_json[i]["question_id"]
+                == question_jsons[i]["question_id"]
+                == second_answers_json[i]["question_id"]
+        )
+
+        question = question_jsons[i]["text"]
+        first_answer = first_answers_json[i]["text"]
+        second_answer = second_answers_json[i]["text"]
+
+        # Extract the evaluation
+        reviews.append(get_eval(question, first_answer, second_answer))
+
+        # To avoid the rate limit set by OpenAI
+        time.sleep(REQ_TIME_GAP)
+
+    # Find the results
+    final_results = extract_results(reviews)
+
+    # Save results
+    save_the_results(final_results)
+
+    # Conclude the major discoveries
+    total_cost, judgement_results = conclude_the_results(final_results)
+
+    print(f'Evaluation results (The first model vs the second model):\n{judgement_results}')
+    print(f'Evaluation cost: ${total_cost:.2f}.')
