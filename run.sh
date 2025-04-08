@@ -1,8 +1,9 @@
 m1=gpt35
 m2=vicuna-13b
 eval_model=gpt-4
-bpc=1
-k=3
+bpc=0
+k=1
+
 python3 FairEval.py \
     -q question.jsonl \
     -a answer/answer_$m1.jsonl answer/answer_$m2.jsonl \

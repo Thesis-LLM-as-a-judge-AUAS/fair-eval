@@ -25,7 +25,7 @@ parser.add_argument("-b", "--bpc", type=int, default=1)
 args = parser.parse_args()
 
 # Cost calculation constants
-if args.eval_model == "`gpt-4`":
+if args.eval_model == "gpt-4":
     cost_per_promtp_token = 0.03 / 1000
     cost_per_completion_token = 0.06 / 1000
 elif args.eval_model == "gpt-3.5-turbo":
