@@ -20,6 +20,7 @@ parser.add_argument("-a", "--answer-file-list", nargs="+", default=[])
 parser.add_argument('-o', '--output', help='Output file (defaults to stdout)')
 parser.add_argument("-m", "--eval-model", default="gpt-3.5-turbo")
 parser.add_argument("-k", "--k", type=int, default=3)
+parser.add_argument("-t", "--t", type=float, default=1)
 parser.add_argument("-b", "--bpc", type=int, default=1)
 
 args = parser.parse_args()
@@ -68,7 +69,7 @@ def query_gpt(system_prompt, uer_prompt):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": uer_prompt},
                 ],
-                temperature=1,
+                temperature=args.t,
                 max_tokens=512,
                 n=args.k
             )
