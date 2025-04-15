@@ -97,24 +97,34 @@ def process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
     return response, final_cost
 
 
+# Number of retries
+N_RETRIES = 20
+
 def extract_scores(question, first_answer, second_answer):
-    response, final_cost = process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
+    for retry_idx in range(N_RETRIES):
+        try:
+            response, final_cost = process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
 
-    all_scores = []
-    content_bodies = []
+            all_scores = []
+            content_bodies = []
 
-    for choice in response["choices"]:
-        # Extract the score from judgement (if exist)
-        content = choice["message"]["content"]
-        first_score, second_score = parse_score_from_review(content)
-        if first_score == -1 or second_score == -1:
-            continue
+            for choice in response["choices"]:
+                # Extract the score from judgement (if exist)
+                content = choice["message"]["content"]
+                first_score, second_score = parse_score_from_review(content)
 
-        # Save answer and scores
-        all_scores.append([first_score, second_score])
-        content_bodies.append(content)
+                if first_score == -1 or second_score == -1:
+                    continue
 
-    return all_scores, content_bodies, final_cost
+                # Save answer and scores
+                all_scores.append([first_score, second_score])
+                content_bodies.append(content)
+
+            return all_scores, content_bodies, final_cost
+        except Exception as e:
+            print(f"Error: {e}")
+    else:
+        print(f"Failed after {N_RETRIES} retries")
 
 
 def get_eval(question, first_answer, second_answer):
@@ -130,7 +140,7 @@ def get_eval(question, first_answer, second_answer):
         scores_bpc, contents_bpc, bpc_cost = extract_scores(question, second_answer, first_answer)
 
         final_cost += bpc_cost
-        all_scores.append(scores_bpc)
+        all_scores = all_scores + [sub[::-1] for sub in scores_bpc]
 
     # Calculate final average score
     first_score = sum([score[0] for score in all_scores]) / len(all_scores)
@@ -141,14 +151,10 @@ def get_eval(question, first_answer, second_answer):
 
 # Extract the score from the response of judge
 def parse_score_from_review(review):
-    try:
-        # Extract the score from the row before the last + the number after :
-        first_score = review.split("\n")[-2].split(":")[-1].strip()
-        second_score = review.split("\n")[-1].split(":")[-1].strip()
-        return [float(first_score), float(second_score)]
-    except Exception as e:
-        print(f'Failed to parse scores from {review}\nError: {e}')
-        return [-1, -1]
+    # Extract the score from the row before the last + the number after :
+    first_score = review.split("\n")[-2].split(":")[-1].strip()
+    second_score = review.split("\n")[-1].split(":")[-1].strip()
+    return [float(first_score), float(second_score)]
 
 
 def get_json_list(file_path):

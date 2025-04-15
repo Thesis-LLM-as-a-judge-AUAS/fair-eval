@@ -1,20 +1,16 @@
 #!/bin/bash
 
 experiment_matrix=(
-  "gpt35 vicuna-13b gpt-4 0 1 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 0 1 1"
-  "gpt35 vicuna-13b gpt-4 0 3 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 0 3 1"
-  "gpt35 vicuna-13b gpt-4 0 6 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 0 6 1"
-  "gpt35 vicuna-13b gpt-4 1 3 1"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 0 1 1"
   "gpt35 vicuna-13b gpt-3.5-turbo 1 3 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 1 1 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 1 5 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 1 7 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 1 3 0.2"
-  "gpt35 vicuna-13b gpt-3.5-turbo 1 3 0.6"
-  "gpt35 vicuna-13b gpt-3.5-turbo 1 3 1.4"
+  "gpt35 vicuna-13b gpt-4 1 3 1"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 1 1 1"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 1 5 1"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 1 7 1"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 1 3 0.2"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 1 3 0.6"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 1 3 1.4"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 0 6 1"
 )
 
 for row in "${experiment_matrix[@]}"; do
