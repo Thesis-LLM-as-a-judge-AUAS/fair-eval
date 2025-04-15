@@ -60,3 +60,8 @@ If you find our work helpful, please kindly cite
   volume={abs/2305.17926},
 }
 ```
+
+# 🚀 Sanity check
+
+Sanity check with experiments is located in [Sanity check notebook](./sanity_check.ipynb)
+
