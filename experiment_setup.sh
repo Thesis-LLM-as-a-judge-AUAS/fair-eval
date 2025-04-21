@@ -1,16 +1,18 @@
 #!/bin/bash
 
 experiment_matrix=(
-  "gpt35 vicuna-13b gpt-3.5-turbo 0 1"
-  "gpt35 vicuna-13b gpt-4 0 1"
-  "gpt35 vicuna-13b gpt-3.5-turbo 0 3"
-  "gpt35 vicuna-13b gpt-4 0 3"
-  "gpt35 vicuna-13b gpt-3.5-turbo 0 6"
-  "gpt35 vicuna-13b gpt-4 0 6"
-  "gpt35 vicuna-13b gpt-3.5-turbo 1 3"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 0 1"
+#  "gpt35 vicuna-13b gpt-4 0 1"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 0 3"
+#  "gpt35 vicuna-13b gpt-4 0 3"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 0 6"
+#  "gpt35 vicuna-13b gpt-4 0 6"
+#  "gpt35 vicuna-13b gpt-3.5-turbo 1 3"
   "gpt35 vicuna-13b gpt-4 1 3"
 )
-for i in $(seq 3 10); do
+for i in $(seq 4 4); do
+  mkdir -p review/"${i}"
+
   for row in "${experiment_matrix[@]}"; do
       read -r m1 m2 eval_model bpc k<<< "$row"
 
