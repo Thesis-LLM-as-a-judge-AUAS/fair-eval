@@ -73,11 +73,12 @@ def query_gpt(system_prompt, uer_prompt):
                 n=args.k
             )
             return response
-        except openai.error.RateLimitError:
+        except openai.error.RateLimitError as e:
             print('Rate limit')
+            print(e)
             time.sleep(30)
         except Exception as e:
-            print('error')
+            print(f'error: {e}')
     raise RuntimeError(f"Failed after {MAX_API_RETRY} retries.")
 
 
