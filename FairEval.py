@@ -78,7 +78,7 @@ def query_gpt(system_prompt, uer_prompt):
             print(e)
             time.sleep(30)
         except Exception as e:
-            print('error')
+            print(f'error: {e}')
     raise RuntimeError(f"Failed after {MAX_API_RETRY} retries.")
 
 
