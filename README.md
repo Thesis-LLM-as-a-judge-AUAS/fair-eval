@@ -63,5 +63,25 @@ If you find our work helpful, please kindly cite
 
 # 🚀 Sanity check
 
+## Experiments
+
+To replicate the results of the paper we performed experiments for 4 sets of parameters and 2 LLMs (GPT-4 and GPT-3.5):
+- EC (k == 1)
+- MEC (k == 3)
+- MEC (k == 6)
+- MEC + BPC (k == 3)
+
+Since the paper declares that its results were obtained as the average of 100 experiments for 80 questions, the minimum number of queries for GPT-4 and GPT-3.5 would be **256000**.
+
+Due to resource constraints, it was decided to sample a portion of the total population as follows:
+- randomly sample 1 question of each category (there is **9 categories**)
+- assign 9 questions to the set of parameters
+
+Thus, we covered **11.25%** of the whole population while maintaining a balance in the categories of questions and their number.
+
+Results of sampling are located in the directory `presets`; results of the experiments are located in the directory `sampled_review` 
+
+## Final analysis
+
 Sanity check with experiments is located in [Sanity check notebook](./sanity_check.ipynb)
 
