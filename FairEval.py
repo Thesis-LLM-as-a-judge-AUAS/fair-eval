@@ -92,8 +92,8 @@ def process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
     response = query_gpt(system_prompt, user_prompt)
 
     # Calculate the cost of prompting
-    final_cost += response['usage']['prompt_tokens'] * cost_per_promtp_token
-    final_cost += response['usage']['completion_tokens'] * cost_per_completion_token
+    final_cost += response.usage.prompt_tokens * cost_per_promtp_token
+    final_cost += response.usage.completion_tokens * cost_per_completion_token
 
     return response, final_cost
 
@@ -101,29 +101,30 @@ def process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
 # Number of retries
 N_RETRIES = 20
 
+
 def extract_scores(question, first_answer, second_answer):
     for retry_idx in range(N_RETRIES):
-        try:
-            response, final_cost = process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
+        # try:
+        response, final_cost = process_and_calculate_cost_for_prompt(question, first_answer, second_answer)
 
-            all_scores = []
-            content_bodies = []
+        all_scores = []
+        content_bodies = []
 
-            for choice in response["choices"]:
-                # Extract the score from judgement (if exist)
-                content = choice["message"]["content"]
-                first_score, second_score = parse_score_from_review(content)
+        for choice in response.choices:
+            # Extract the score from judgement (if exist)
+            content = choice.message.content
+            first_score, second_score = parse_score_from_review(content)
 
-                if first_score == -1 or second_score == -1:
-                    continue
+            if first_score == -1 or second_score == -1:
+                continue
 
-                # Save answer and scores
-                all_scores.append([first_score, second_score])
-                content_bodies.append(content)
+            # Save answer and scores
+            all_scores.append([first_score, second_score])
+            content_bodies.append(content)
 
-            return all_scores, content_bodies, final_cost
-        except Exception as e:
-            print(f"Error: {e}")
+        return all_scores, content_bodies, final_cost
+    # except Exception as e:
+    #     print(f"Error: {e}")
     else:
         print(f"Failed after {N_RETRIES} retries")
 
