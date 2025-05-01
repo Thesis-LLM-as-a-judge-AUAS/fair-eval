@@ -34,8 +34,10 @@ elif args.eval_model == "gpt-3.5-turbo":
 else:
     raise ValueError("Invalid evaluator name")
 
-# OpenAI API key
+# OpenAI API key and caching
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+os.environ["OPENAI_ENABLE_CACHE"] = "true"
+
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
