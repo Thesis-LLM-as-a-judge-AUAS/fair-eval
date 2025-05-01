@@ -35,10 +35,9 @@ else:
     raise ValueError("Invalid evaluator name")
 
 # OpenAI API key and caching
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 os.environ["OPENAI_ENABLE_CACHE"] = "true"
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
 # Judge prompt
@@ -64,7 +63,7 @@ def gen_prompt(question, first_answer, second_answer):
 def query_gpt(system_prompt, uer_prompt):
     for retry_idx in range(MAX_API_RETRY):
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model=args.eval_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -75,7 +74,7 @@ def query_gpt(system_prompt, uer_prompt):
                 n=args.k
             )
             return response
-        except openai.error.RateLimitError as e:
+        except openai.RateLimitError as e:
             print('Rate limit')
             print(e)
             time.sleep(30)
