@@ -69,7 +69,7 @@ def query_gpt(system_prompt, uer_prompt):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": uer_prompt},
                 ],
-                temperature=0,
+                temperature=0.1,
                 max_tokens=512,
                 n=args.k
             )
