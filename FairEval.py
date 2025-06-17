@@ -73,6 +73,7 @@ def query_gpt(system_prompt, uer_prompt):
                 max_tokens=512,
                 n=args.k
             )
+
             return response
         except openai.RateLimitError as e:
             print('Rate limit')
