@@ -69,7 +69,7 @@ def query_gpt(system_prompt, uer_prompt):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": uer_prompt},
                 ],
-                temperature=0.1,
+                temperature=1,
                 max_tokens=512,
                 n=args.k
             )
@@ -220,46 +220,51 @@ def save_the_results(final_results):
 
 
 if __name__ == "__main__":
-    # Upload jsons with questions and answers
-    question_jsons = get_json_list(args.question_file)
-    first_answers_json = get_json_list(args.answer_file_list[0])
-    second_answers_json = get_json_list(args.answer_file_list[1])
+    try:
+        # Upload jsons with questions and answers
+        question_jsons = get_json_list(args.question_file)
+        first_answers_json = get_json_list(args.answer_file_list[0])
+        second_answers_json = get_json_list(args.answer_file_list[1])
 
-    # Check equality of length
-    assert len(question_jsons) == len(first_answers_json) == len(second_answers_json)
+        # Check equality of length
+        assert len(question_jsons) == len(first_answers_json) == len(second_answers_json)
 
-    # Init vars
-    reviews = []
-    total_len = len(question_jsons)
-    question_idx_list = list(range(total_len))
+        # Init vars
+        reviews = []
+        total_len = len(question_jsons)
+        question_idx_list = list(range(total_len))
 
-    # Iterate with progress bar through all the questions
-    for i in tqdm(question_idx_list):
-        # Check that in all datasets are the same question
-        assert (
-                first_answers_json[i]["question_id"]
-                == question_jsons[i]["question_id"]
-                == second_answers_json[i]["question_id"]
-        )
+        # Iterate with progress bar through all the questions
+        for i in tqdm(question_idx_list):
+            # Check that in all datasets are the same question
+            assert (
+                    first_answers_json[i]["question_id"]
+                    == question_jsons[i]["question_id"]
+                    == second_answers_json[i]["question_id"]
+            )
 
-        question = question_jsons[i]["text"]
-        first_answer = first_answers_json[i]["text"]
-        second_answer = second_answers_json[i]["text"]
+            question = question_jsons[i]["text"]
+            first_answer = first_answers_json[i]["text"]
+            second_answer = second_answers_json[i]["text"]
 
-        # Extract the evaluation
-        reviews.append(get_eval(question, first_answer, second_answer))
+            # Extract the evaluation
+            reviews.append(get_eval(question, first_answer, second_answer))
 
-        # To avoid the rate limit set by OpenAI
-        time.sleep(REQ_TIME_GAP)
+            # To avoid the rate limit set by OpenAI
+            time.sleep(REQ_TIME_GAP)
 
-    # Find the results
-    final_results = extract_results(reviews)
+        # Find the results
+        final_results = extract_results(reviews)
 
-    # Save results
-    save_the_results(final_results)
+        # Save results
+        save_the_results(final_results)
 
-    # Conclude the major discoveries
-    total_cost, judgement_results = conclude_the_results(final_results)
+        # Conclude the major discoveries
+        total_cost, judgement_results = conclude_the_results(final_results)
 
-    print(f'Evaluation results (The first model vs the second model):\n{judgement_results}')
-    print(f'Evaluation cost: ${total_cost:.2f}.')
+        print(f'Evaluation results (The first model vs the second model):\n{judgement_results}')
+        print(f'Evaluation cost: ${total_cost:.2f}.')
+
+    finally:
+        with open(f'./{time.time()}-reviews.json', 'w') as f:
+            json.dump(reviews, f)
